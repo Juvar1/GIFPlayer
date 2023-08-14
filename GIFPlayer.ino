@@ -47,7 +47,6 @@
 #include <AnimatedGIF.h>
 #include <SdFat.h>
 #include <Adafruit_SPIFlash.h>
-#include <Adafruit_GFX.h>
 #include "SPI.h"
 #include "Adafruit_GC9A01A.h"
 #include "hardware/dma.h"
@@ -73,8 +72,8 @@
 #define MADCTL_BGR 0x08 ///< Blue-Green-Red pixel order
 #define MADCTL_MH 0x04  ///< LCD refresh right to left
 
-#define SIDE_SET_HAS_ENABLE_BIT		1
-#define SIDE_SET_NUM_BITS					2
+#define SIDE_SET_HAS_ENABLE_BIT 1
+#define SIDE_SET_NUM_BITS       2
 #define DEFINE_PIO_INSTRS
 #include "pioAsm.h"
 
@@ -490,10 +489,13 @@ void setup() {
   root.close();
   
   // ext buttons init
-  digitalWrite(0, INPUT_PULLDOWN); // yes, undocumented feature
-  digitalWrite(1, INPUT_PULLDOWN); // pullup does not work at all with RP2040
-  digitalWrite(2, INPUT_PULLDOWN);
-  digitalWrite(3, INPUT_PULLDOWN);
+  pinMode(0, INPUT_PULLDOWN); // yes, undocumented feature
+  pinMode(1, INPUT_PULLDOWN); // pullup does not work at all with RP2040
+  pinMode(2, INPUT_PULLDOWN);
+  pinMode(3, INPUT_PULLDOWN);
+  // source voltage to ext buttons
+  pinMode(4, OUTPUT);    // REALLY! There is no other power source on board
+  digitalWrite(4, HIGH); // when using battery
 
   pinMode(25, OUTPUT);
   pinMode(TFT_CS, OUTPUT);
@@ -512,7 +514,7 @@ void setup() {
   pinMode(TFT_DC, OUTPUT);
   digitalWrite(TFT_DC, HIGH); // Data mode
 
-  PicoSPI1.configure(10, 11, 8, 9, 24000*1000, 0, false);
+  PicoSPI1.configure(TFT_SCLK, TFT_MOSI, 8, TFT_CS, 24000*1000, 0, false);
 
   displayInit();
 
@@ -521,7 +523,7 @@ void setup() {
   setAddrWindow(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
   uint16_t initColor = GC9A01A_BLUE;
   for (int i = 0; i < DISPLAY_WIDTH * DISPLAY_HEIGHT; i++)
-		writePixels2Blocking((uint16_t*)&initColor, 1);
+    writePixels2Blocking((uint16_t*)&initColor, 1);
   digitalWrite(TFT_CS, HIGH);
   delay(3000);
 
