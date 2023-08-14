@@ -9,7 +9,11 @@ Gif's are named after which button activates it. Format is Xbtn.gif where
 X is a button number. Gif's must be same size than display. In this case
 240x240 pixels.
 
-Program uses DMA and full frame buffer to update display.
+Program uses DMA and full frame buffer to update display. 
+
+Board used in this project:
+
+https://www.waveshare.com/wiki/RP2040-LCD-1.28
 
 Links to source codes that was helping during development process
 
