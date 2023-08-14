@@ -12,8 +12,11 @@ X is a button number. Gif's must be same size than display. In this case
 Program uses DMA and full frame buffer to update display.
 
 Links to source codes that was helping during development process
+
 https://learn.adafruit.com/mini-gif-players/coding-the-mini-gif-players
+
 https://github.com/MarkTillotson/PicoSPI
+
 https://github.com/stienman/Raspberry-Pi-Pico-PIO-LCD-Driver
 
 ---------------------------------------------------------------------------
