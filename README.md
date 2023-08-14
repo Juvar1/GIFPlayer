@@ -23,7 +23,9 @@ https://github.com/stienman/Raspberry-Pi-Pico-PIO-LCD-Driver
 Parts of this program is lisenced under following licenses
 
 Copyright 2022 Limor Fried for Adafruit Industries
+
 License MIT
+
 
 (c) 2023 Dmitry Grinberg  https://dmitry.gr
 Redistribution and use in source and binary forms, with or without modification,
