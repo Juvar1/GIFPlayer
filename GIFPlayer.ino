@@ -52,6 +52,10 @@
 #include "hardware/dma.h"
 #include "PicoSPI.h"
 
+#include "sleep.h"
+#include "rosc.h"
+#include "hardware/structs/scb.h"
+
 #define TFT_CS     9
 #define TFT_DC     8
 #define TFT_RST   12
@@ -82,6 +86,12 @@ static uint16_t fBuffer[DISPLAY_WIDTH * DISPLAY_HEIGHT];
 static void* mFb = (void*)&fBuffer;
 
 int lastPressedBtn = 0;
+unsigned long sleepTimer = 0;
+
+// registers to be saved before sleep and restored after sleep
+uint _scb_orig;           // clock registers
+uint _en0_orig;           // ""
+uint _en1_orig;           // ""
 
 #if defined(ARDUINO_ARCH_ESP32)
   // ESP32 use same flash device that store code.
@@ -99,10 +109,10 @@ int lastPressedBtn = 0;
   // size = total flash - 1 MB) use const value (CPY_START_ADDR, CPY_SIZE) or
   // subclass Adafruit_FlashTransport_RP2040_CPY. Un-comment either of the
   // following line:
-  //  Adafruit_FlashTransport_RP2040
-  //    flashTransport(Adafruit_FlashTransport_RP2040::CPY_START_ADDR,
-  //                   Adafruit_FlashTransport_RP2040::CPY_SIZE);
-  Adafruit_FlashTransport_RP2040_CPY flashTransport;
+    Adafruit_FlashTransport_RP2040
+      flashTransport(Adafruit_FlashTransport_RP2040::CPY_START_ADDR,
+                     Adafruit_FlashTransport_RP2040::CPY_SIZE);
+  //Adafruit_FlashTransport_RP2040_CPY flashTransport;
 
 #else
   // On-board external flash (QSPI or SPI) macros should already
@@ -489,13 +499,10 @@ void setup() {
   root.close();
   
   // ext buttons init
-  pinMode(0, INPUT_PULLDOWN); // yes, undocumented feature
-  pinMode(1, INPUT_PULLDOWN); // pullup does not work at all with RP2040
-  pinMode(2, INPUT_PULLDOWN);
-  pinMode(3, INPUT_PULLDOWN);
-  // source voltage to ext buttons
-  pinMode(4, OUTPUT);    // REALLY! There is no other power source on board
-  digitalWrite(4, HIGH); // when using battery
+  pinMode(0, INPUT_PULLUP);
+  pinMode(1, INPUT_PULLUP);
+  pinMode(2, INPUT_PULLUP);
+  pinMode(3, INPUT_PULLUP);
 
   pinMode(25, OUTPUT);
   pinMode(TFT_CS, OUTPUT);
@@ -564,6 +571,7 @@ void loop() {
     if (strstr(thefilename, fName)) {
       // found a gif
       if (gif.open(thefilename, GIFOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
+        
         GIFINFO gi;
         Serial.printf("Successfully opened GIF %s; Canvas size = %d x %d\n",  thefilename, gif.getCanvasWidth(), gif.getCanvasHeight());
         
@@ -578,12 +586,35 @@ void loop() {
           while (gif.playFrame(true, NULL));
           gif.reset();
           int old = lastPressedBtn;
-          if (digitalRead(0) == 1) lastPressedBtn = 0;
-          if (digitalRead(1) == 1) lastPressedBtn = 1;
-          if (digitalRead(2) == 1) lastPressedBtn = 2;
-          if (digitalRead(3) == 1) lastPressedBtn = 3;
-          if (old != lastPressedBtn) 
+          if (digitalRead(0) == 0) lastPressedBtn = 0;
+          if (digitalRead(1) == 0) lastPressedBtn = 1;
+          if (digitalRead(2) == 0) lastPressedBtn = 2;
+          if (digitalRead(3) == 0) lastPressedBtn = 3;
+          if (old != lastPressedBtn) {
+            sleepTimer = millis();
             break;
+          }
+          // two minutes and goes to deep sleep mode
+          if ((millis() - sleepTimer) > (1000 * 60 * 2)) {
+            // --- to sleep
+            digitalWrite(25, LOW); // Backlight off
+            // save clock registers
+            _scb_orig = scb_hw->scr;
+            _en0_orig = clocks_hw->sleep_en0;
+            _en1_orig = clocks_hw->sleep_en1;
+            sleep_run_from_xosc();
+            //sleep_goto_dormant_until_pin(0, false, false);
+            sleep_goto_dormant_until_edge_high(0);
+            // --- to awake
+            rosc_write(&rosc_hw->ctrl, ROSC_CTRL_ENABLE_BITS);
+            // restore clock registers
+            scb_hw->scr = _scb_orig;
+            clocks_hw->sleep_en0 = _en0_orig;
+            clocks_hw->sleep_en1 = _en1_orig;
+            clocks_init();
+            sleepTimer = millis();
+            digitalWrite(25, HIGH); // Backlight on
+          }
         }
         gif.close();
       } else {
